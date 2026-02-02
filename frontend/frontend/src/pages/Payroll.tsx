@@ -1,192 +1,199 @@
 import { useEffect, useState } from 'react';
-import { Download, DollarSign } from 'lucide-react';
+import { Plus, Download, DollarSign } from 'lucide-react';
 import api from '../lib/api';
 import { Layout } from '../components/layout/Layout';
 import { useAuth } from '../contexts/AuthContext';
-import type { Payroll as PayrollType } from '../types';
 
 export function Payroll() {
   const { employee } = useAuth();
-  const [payrolls, setPayrolls] = useState<PayrollType[]>([]);
-  const [selectedPayroll, setSelectedPayroll] = useState<PayrollType | null>(null);
-  const [showPayslip, setShowPayslip] = useState(false);
-  const [loading, setLoading] = useState(true);
-
   const isAdmin = employee?.is_admin;
+  
+  const [payrolls, setPayrolls] = useState([]);
+  const [employeesList, setEmployeesList] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  
+  // Clean Form Data
+  const [newPayroll, setNewPayroll] = useState({
+      employee_id: '', 
+      month: 'February', 
+      year: new Date().getFullYear(), 
+      basic_salary: '', 
+      allowances: 0, 
+      deductions: 0
+  });
 
   useEffect(() => {
     fetchPayrolls();
+    if (isAdmin) fetchEmployees();
   }, [employee]);
 
   const fetchPayrolls = async () => {
-    if (!employee) return;
+    try {
+        const { data } = await api.get('/payroll/');
+        setPayrolls(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+        const { data } = await api.get('/employees/');
+        setEmployeesList(data);
+    } catch (e) { console.error(e); }
+  };
+
+ const handleAddPayroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // 1. Validation: Check if Employee is selected
+    if (!newPayroll.employee_id) {
+        alert("Please select an employee.");
+        return;
+    }
+
+    // 2. Validation: Check if Salary is filled
+    if (!newPayroll.basic_salary) {
+        alert("Please enter Basic Salary.");
+        return;
+    }
 
     try {
-      const { data } = await api.get('/payroll/');
-      
-      let filteredData = data;
-      if (!isAdmin) {
-          filteredData = data.filter((p: any) => p.employee_id === employee.id);
-      }
-      setPayrolls(filteredData || []);
-    } catch (error) {
-      console.error('Error fetching payrolls:', error);
-    } finally {
-      setLoading(false);
+        // 3. Conversion: Force Convert Strings to Numbers
+        const basic = parseFloat(newPayroll.basic_salary);
+        const allow = parseFloat(newPayroll.allowances.toString()) || 0;
+        const deduct = parseFloat(newPayroll.deductions.toString()) || 0;
+        const empId = parseInt(newPayroll.employee_id);
+        const yearInt = parseInt(newPayroll.year.toString());
+
+        // Calculate Net Salary
+        const net = basic + allow - deduct;
+
+        // 4. Send Clean Data
+        await api.post('/payroll/', {
+            employee_id: empId, // Sending ID as Number
+            month: newPayroll.month,
+            year: yearInt,
+            basic_salary: basic,
+            allowances: allow,
+            deductions: deduct,
+            net_salary: net,
+            status: 'paid'
+        });
+
+        setShowModal(false);
+        fetchPayrolls();
+        alert('Payroll Added Successfully ✅');
+        
+        // Optional: Reset form
+        setNewPayroll({ ...newPayroll, basic_salary: '', allowances: 0, deductions: 0 });
+
+    } catch (err: any) {
+        console.error(err);
+        // Show the actual error coming from backend if possible
+        const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'Ensure all fields are numbers.';
+        alert('Failed to add payroll: ' + errorMsg);
     }
   };
 
-  const viewPayslip = (payroll: PayrollType) => {
-    setSelectedPayroll(payroll);
-    setShowPayslip(true);
-  };
-
-  const downloadPayslip = () => {
-    window.print();
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Loading payroll...</div>
-        </div>
-      </Layout>
-    );
-  }
+  const formatCurrency = (val: any) => `$${Number(val).toLocaleString()}`;
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Same UI code as before */}
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payroll Management</h1>
-          <p className="text-gray-600 mt-1">
-            {isAdmin ? 'Manage employee payroll' : 'View your payslips'}
-          </p>
+           <h1 className="text-2xl font-bold text-gray-900">Salary Management</h1>
+           <p className="text-gray-500">{isAdmin ? 'Process employee salaries.' : 'View your payslips.'}</p>
         </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  {isAdmin && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Employee</th>
-                  )}
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Period</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Basic Salary</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Allowances</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Deductions</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Net Salary</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payrolls.length === 0 ? (
-                  <tr>
-                    <td colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-gray-500">
-                      No payroll records found
-                    </td>
-                  </tr>
-                ) : (
-                  payrolls.map((payroll) => (
-                    <tr key={payroll.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      {isAdmin && (
-                        <td className="py-3 px-4">
-                          <p className="font-medium text-gray-900">
-                            {payroll.employees?.first_name} {payroll.employees?.last_name}
-                          </p>
-                          <p className="text-sm text-gray-600">{payroll.employees?.employee_code}</p>
-                        </td>
-                      )}
-                      <td className="py-3 px-4 text-gray-900 font-medium">
-                        {payroll.month} {payroll.year}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{formatCurrency(payroll.basic_salary)}</td>
-                      <td className="py-3 px-4 text-green-600">{formatCurrency(payroll.allowances)}</td>
-                      <td className="py-3 px-4 text-red-600">{formatCurrency(payroll.deductions)}</td>
-                      <td className="py-3 px-4 text-gray-900 font-semibold">
-                        {formatCurrency(payroll.net_salary)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            payroll.status === 'paid'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }`}
-                        >
-                          {payroll.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <button
-                          onClick={() => viewPayslip(payroll)}
-                          className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-                        >
-                          View Payslip
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {isAdmin && (
+           <button onClick={() => setShowModal(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700">
+             <Plus size={18}/> New Payroll
+           </button>
+        )}
       </div>
 
-      {showPayslip && selectedPayroll && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-8 print:p-0">
-              <div className="flex items-center justify-between mb-6 print:hidden">
-                <h2 className="text-2xl font-bold text-gray-900">Payslip</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={downloadPayslip}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Download size={20} />
-                    Download
-                  </button>
-                  <button
-                    onClick={() => setShowPayslip(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table className="w-full text-sm text-left">
+           <thead className="bg-gray-50 text-gray-600 font-medium">
+              <tr>
+                 {isAdmin && <th className="px-6 py-4">Employee</th>}
+                 <th className="px-6 py-4">Period</th>
+                 <th className="px-6 py-4">Basic</th>
+                 <th className="px-6 py-4">Net Salary</th>
+                 <th className="px-6 py-4">Status</th>
+                 <th className="px-6 py-4">Action</th>
+              </tr>
+           </thead>
+           <tbody className="divide-y divide-gray-100">
+              {payrolls.map((p: any) => (
+                 <tr key={p.id} className="hover:bg-gray-50">
+                    {isAdmin && (
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                            {p.employees ? `${p.employees.first_name} ${p.employees.last_name}` : 'Unknown'}
+                        </td>
+                    )}
+                    <td className="px-6 py-4">{p.month} {p.year}</td>
+                    <td className="px-6 py-4">{formatCurrency(p.basic_salary)}</td>
+                    <td className="px-6 py-4 font-bold text-green-600">{formatCurrency(p.net_salary)}</td>
+                    <td className="px-6 py-4">
+                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase">Paid</span>
+                    </td>
+                    <td className="px-6 py-4">
+                       <button className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-bold" onClick={() => window.print()}>
+                          <Download size={14}/> Slip
+                       </button>
+                    </td>
+                 </tr>
+              ))}
+           </tbody>
+        </table>
+      </div>
 
-              <div className="border border-gray-300 rounded-lg p-8">
-                <div className="text-center mb-8">
-                  <h1 className="text-2xl font-bold text-gray-900">Company Name</h1>
-                  <p className="text-gray-600">Employee Payslip</p>
-                </div>
-                {/* Payslip details logic remains same, just ensuring data access is correct */}
-                 <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div>
-                    <p className="text-sm text-gray-600">Employee Name</p>
-                    <p className="font-medium text-gray-900">
-                      {selectedPayroll.employees?.first_name} {selectedPayroll.employees?.last_name}
-                    </p>
-                  </div>
-                  {/* ... rest of payslip UI ... */}
+      {/* ADD PAYROLL MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+              <h2 className="text-xl font-bold mb-4">Process New Salary</h2>
+              <form onSubmit={handleAddPayroll} className="space-y-3">
+                 <div>
+                    <label className="block text-sm font-medium mb-1">Select Employee</label>
+                    <select className="w-full border p-2 rounded-lg" onChange={(e) => setNewPayroll({...newPayroll, employee_id: e.target.value})} required>
+                       <option value="">-- Select --</option>
+                       {employeesList.map((e: any) => (
+                          <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>
+                       ))}
+                    </select>
                  </div>
-                 {/* ... Earnings section ... */}
-              </div>
-            </div>
-          </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Month</label>
+                        <select className="w-full border p-2 rounded-lg" onChange={(e) => setNewPayroll({...newPayroll, month: e.target.value})}>
+                            <option>February</option><option>March</option><option>April</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Year</label>
+                        <input type="number" value={newPayroll.year} className="w-full border p-2 rounded-lg" onChange={(e) => setNewPayroll({...newPayroll, year: parseInt(e.target.value)})}/>
+                    </div>
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium mb-1">Basic Salary ($)</label>
+                    <input type="number" className="w-full border p-2 rounded-lg" placeholder="0.00" onChange={(e) => setNewPayroll({...newPayroll, basic_salary: e.target.value})} required />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Allowances ($)</label>
+                        <input type="number" className="w-full border p-2 rounded-lg" placeholder="0" onChange={(e) => setNewPayroll({...newPayroll, allowances: Number(e.target.value)})} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Deductions ($)</label>
+                        <input type="number" className="w-full border p-2 rounded-lg" placeholder="0" onChange={(e) => setNewPayroll({...newPayroll, deductions: Number(e.target.value)})} />
+                    </div>
+                 </div>
+                 <div className="pt-2 flex gap-3">
+                    <button type="button" onClick={() => setShowModal(false)} className="flex-1 bg-gray-100 py-2 rounded-lg text-gray-700">Cancel</button>
+                    <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">Submit</button>
+                 </div>
+              </form>
+           </div>
         </div>
       )}
     </Layout>

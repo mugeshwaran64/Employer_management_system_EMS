@@ -1,53 +1,98 @@
 from rest_framework import viewsets, status
-from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth.models import User
-from .models import Employee, Department, Attendance, Leave, Payroll
-from .serializers import *
+from .models import Employee, Department, Attendance, Payroll
+from .serializers import EmployeeSerializer, DepartmentSerializer, AttendanceSerializer, PayrollSerializer
 
-# Authentication View
+# --- 1. LOGIN LOGIC ---
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
     email = request.data.get('email')
     password = request.data.get('password')
     
-    # Simple check for demo (In real app, use User model auth)
     try:
         employee = Employee.objects.get(email=email)
-        # Note: You should hash passwords. For this simple demo we check raw string.
-        # Ideally: user = authenticate(username=email, password=password)
-        if employee.user and employee.user.check_password(password):
-             refresh = RefreshToken.for_user(employee.user)
-             return Response({
-                 'refresh': str(refresh),
-                 'access': str(refresh.access_token),
-                 'user': EmployeeSerializer(employee).data
-             })
     except Employee.DoesNotExist:
-        pass
-        
-    return Response({'error': 'Invalid Credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
-# ViewSets
+    if employee.user:
+        user = authenticate(username=employee.user.username, password=password)
+    else:
+        return Response({'error': 'Employee not linked to a user'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if user:
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': EmployeeSerializer(employee).data
+        })
+    else:
+        return Response({'error': 'Invalid password'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+# --- 2. VIEWSETS ---
+
 class EmployeeViewSet(viewsets.ModelViewSet):
-    queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or (hasattr(user, 'employee') and user.employee.is_admin):
+            # CHANGED: Sort by '-id' instead of '-created_at' to fix the crash
+            return Employee.objects.all().order_by('-id')
+        return Employee.objects.filter(user=user)
 
 class DepartmentViewSet(viewsets.ModelViewSet):
+    # Added this back so your Employee Form dropdowns work
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
+    permission_classes = [IsAuthenticated]
+
+# Inside backend/api/views.py
 
 class AttendanceViewSet(viewsets.ModelViewSet):
-    queryset = Attendance.objects.all()
     serializer_class = AttendanceSerializer
+    permission_classes = [IsAuthenticated]
 
-class LeaveViewSet(viewsets.ModelViewSet):
-    queryset = Leave.objects.all()
-    serializer_class = LeaveSerializer
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or (hasattr(user, 'employee') and user.employee.is_admin):
+            return Attendance.objects.all().order_by('-date')
+        return Attendance.objects.filter(employee__user=user).order_by('-date')
+
+    # This function handles the "Present -> Absent" switch
+    def create(self, request, *args, **kwargs):
+        employee_id = request.data.get('employee_id')
+        date = request.data.get('date')
+        status_val = request.data.get('status')
+        check_in = request.data.get('check_in')
+
+        # 1. Search for existing record
+        existing_record = Attendance.objects.filter(employee_id=employee_id, date=date).first()
+
+        if existing_record:
+            # 2. Update it if found
+            existing_record.status = status_val
+            if check_in:
+                existing_record.check_in = check_in
+            existing_record.save()
+            return Response({"message": "Attendance Updated", "status": status_val})
+        else:
+            # 3. Create new if not found
+            return super().create(request, *args, **kwargs)
 
 class PayrollViewSet(viewsets.ModelViewSet):
-    queryset = Payroll.objects.all()
     serializer_class = PayrollSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or (hasattr(user, 'employee') and user.employee.is_admin):
+            return Payroll.objects.all().order_by('-id')
+        return Payroll.objects.filter(employee__user=user).order_by('-id')
