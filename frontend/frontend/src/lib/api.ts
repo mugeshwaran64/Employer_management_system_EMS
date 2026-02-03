@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api', // Make sure this matches your Django port
+  baseURL: import.meta.env.VITE_API_URL, // Auto-selects based on environment
 });
 
 // Add JWT Token to every request

@@ -92,7 +92,9 @@ export function Login() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Demo Credentials: admin@company.com / Admin123
+              Login Credentials for Testing: <br></br> 
+              admin@company.com / ADMIN@123#% (admin) <br></br>
+              employer1@gmail.com / employer1 (employee) 
             </p>
           </div>
         </div>
