@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, LogIn } from 'lucide-react';
+import api from '../lib/api'; // <--- ADDED THIS IMPORT
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -17,9 +18,16 @@ export function Login() {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      // Sending 'username' key because Django expects it, even though we send an email value
+      const { data } = await api.post('/token/', { 
+          username: email, 
+          password: password 
+      });
+      
+      signIn(data.access, data.employee); // Save token
       navigate('/dashboard');
     } catch (err: any) {
+      console.error("Login Failed:", err);
       setError('Invalid email or password');
     } finally {
       setLoading(false);
@@ -92,9 +100,8 @@ export function Login() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Login Credentials for Testing: <br></br> 
-              admin@company.com / ADMIN@123#% (admin) <br></br>
-              employer1@gmail.com / employer1 (employee) 
+              Login Credentials: <br></br> 
+              <span className="font-bold">admin@gmail.com</span> / <span className="font-bold">admin</span>
             </p>
           </div>
         </div>
