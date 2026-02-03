@@ -4,7 +4,11 @@ import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import { Layout } from '../components/layout/Layout';
 import type { Employee } from '../types/index';
-
+// Add this interface
+interface Department {
+  id: number;
+  name: string;
+}
 export function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
