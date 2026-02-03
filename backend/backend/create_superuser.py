@@ -7,19 +7,20 @@ django.setup()
 
 from django.contrib.auth.models import User
 
-# Configuration
-USERNAME = "admin"
+# --- CRITICAL CHANGE: Username and Email are the SAME now ---
+USERNAME = "admin@gmail.com"  # Using email as username
 EMAIL = "admin@gmail.com"
-PASSWORD = "admin"  # <--- Neenga keta password
+PASSWORD = "admin"
 
-# Check if user exists
 if User.objects.filter(username=USERNAME).exists():
     print(f"User {USERNAME} found. Reseting password...")
     user = User.objects.get(username=USERNAME)
     user.set_password(PASSWORD)
+    user.is_superuser = True
+    user.is_staff = True
     user.save()
-    print("Password updated successfully!")
+    print("Password reset success!")
 else:
-    print(f"Creating superuser: {USERNAME}...")
-    User.objects.create_superuser(USERNAME, EMAIL, PASSWORD)
+    print(f"Creating new superuser: {USERNAME}...")
+    User.objects.create_superuser(username=USERNAME, email=EMAIL, password=PASSWORD)
     print("Superuser created successfully!")
