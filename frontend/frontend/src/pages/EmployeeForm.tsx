@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 import type { Department } from '../types';
 
 export function EmployeeForm() {

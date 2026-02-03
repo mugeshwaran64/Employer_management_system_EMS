@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, Briefcase } from 'lucide-react';
 import api from '../lib/api';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Profile() {

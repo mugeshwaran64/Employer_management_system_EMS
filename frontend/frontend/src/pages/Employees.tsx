@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import api from '../lib/api';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 import type { Employee } from '../types/index';
 // Add this interface
 interface Department {

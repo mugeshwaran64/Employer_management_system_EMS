@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Download, DollarSign } from 'lucide-react';
 import api from '../lib/api';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Payroll() {

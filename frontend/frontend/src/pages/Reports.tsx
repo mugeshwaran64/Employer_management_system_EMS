@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import api from '../lib/api';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 
 export function Reports() {
   const [loading, setLoading] = useState(false);

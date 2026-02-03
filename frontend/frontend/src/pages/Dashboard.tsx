@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Users, Calendar, DollarSign, Briefcase, MapPin, Phone, Mail, Clock, UserCircle } from 'lucide-react';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { Layout } from '../components/layout/Layout';
+import { Layout } from '../components/layout/AppLayout';
 
 export function Dashboard() {
   const { employee } = useAuth();
