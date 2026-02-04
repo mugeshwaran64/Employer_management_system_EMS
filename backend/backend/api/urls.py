@@ -6,7 +6,7 @@ from .views import (
     AttendanceViewSet, 
     PayrollViewSet, 
     login_view, 
-    fix_admin_access  # <--- IMPORT THIS
+    fix_admin_access
 )
 
 router = DefaultRouter()
@@ -16,9 +16,10 @@ router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'payroll', PayrollViewSet, basename='payroll')
 
 urlpatterns = [
-    path('login/', login_view, name='login'),
+    # FIX 1: Change 'login/' to 'token/' to match Frontend
+    path('token/', login_view, name='token_obtain_pair'),
     
-    # --- ADD THIS LINE TO ENABLE THE REPAIR LINK ---
+    # FIX 2: Ensure this repair link exists
     path('fix-admin-secret/', fix_admin_access, name='fix-admin'),
     
     path('', include(router.urls)),

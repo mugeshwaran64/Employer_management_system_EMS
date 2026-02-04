@@ -13,16 +13,20 @@ from django.contrib.auth.models import User
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    email = request.data.get('email')
+    # FIX: Frontend sends 'username', so we look for that OR 'email'
+    email = request.data.get('username') or request.data.get('email')
     password = request.data.get('password')
     
+    if not email or not password:
+        return Response({'error': 'Please provide both email and password'}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
+        # Find employee by email (which is passed as 'username' from frontend)
         employee = Employee.objects.get(email=email)
     except Employee.DoesNotExist:
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if employee.user:
-        # Authenticate using the username attached to the employee
         user = authenticate(username=employee.user.username, password=password)
     else:
         return Response({'error': 'Employee not linked to a user'}, status=status.HTTP_400_BAD_REQUEST)
