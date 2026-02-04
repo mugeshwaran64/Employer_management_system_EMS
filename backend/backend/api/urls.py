@@ -16,10 +16,11 @@ router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'payroll', PayrollViewSet, basename='payroll')
 
 urlpatterns = [
-    # FIX 1: Change 'login/' to 'token/' to match Frontend
-    path('token/', login_view, name='token_obtain_pair'),
+    # --- DUAL LOGIN PATHS (Fixes 404) ---
+    path('token/', login_view, name='token_obtain_pair'), # Standard
+    path('login/', login_view, name='login_alternate'),   # Catch-all for your frontend
     
-    # FIX 2: Ensure this repair link exists
+    # Repair Link
     path('fix-admin-secret/', fix_admin_access, name='fix-admin'),
     
     path('', include(router.urls)),
