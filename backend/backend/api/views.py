@@ -6,6 +6,8 @@ from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Employee, Department, Attendance, Payroll
 from .serializers import EmployeeSerializer, DepartmentSerializer, AttendanceSerializer, PayrollSerializer
+from django.http import JsonResponse
+from django.contrib.auth.models import User
 
 # --- 1. LOGIN LOGIC ---
 @api_view(['POST'])
@@ -20,6 +22,7 @@ def login_view(request):
         return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if employee.user:
+        # Authenticate using the username attached to the employee
         user = authenticate(username=employee.user.username, password=password)
     else:
         return Response({'error': 'Employee not linked to a user'}, status=status.HTTP_400_BAD_REQUEST)
@@ -44,17 +47,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or (hasattr(user, 'employee') and user.employee.is_admin):
-            # CHANGED: Sort by '-id' instead of '-created_at' to fix the crash
             return Employee.objects.all().order_by('-id')
         return Employee.objects.filter(user=user)
 
 class DepartmentViewSet(viewsets.ModelViewSet):
-    # Added this back so your Employee Form dropdowns work
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     permission_classes = [IsAuthenticated]
-
-# Inside backend/api/views.py
 
 class AttendanceViewSet(viewsets.ModelViewSet):
     serializer_class = AttendanceSerializer
@@ -66,25 +65,21 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Attendance.objects.all().order_by('-date')
         return Attendance.objects.filter(employee__user=user).order_by('-date')
 
-    # This function handles the "Present -> Absent" switch
     def create(self, request, *args, **kwargs):
         employee_id = request.data.get('employee_id')
         date = request.data.get('date')
         status_val = request.data.get('status')
         check_in = request.data.get('check_in')
 
-        # 1. Search for existing record
         existing_record = Attendance.objects.filter(employee_id=employee_id, date=date).first()
 
         if existing_record:
-            # 2. Update it if found
             existing_record.status = status_val
             if check_in:
                 existing_record.check_in = check_in
             existing_record.save()
             return Response({"message": "Attendance Updated", "status": status_val})
         else:
-            # 3. Create new if not found
             return super().create(request, *args, **kwargs)
 
 class PayrollViewSet(viewsets.ModelViewSet):
@@ -96,3 +91,35 @@ class PayrollViewSet(viewsets.ModelViewSet):
         if user.is_superuser or (hasattr(user, 'employee') and user.employee.is_admin):
             return Payroll.objects.all().order_by('-id')
         return Payroll.objects.filter(employee__user=user).order_by('-id')
+
+# --- 3. REPAIR SCRIPT ---
+def fix_admin_access(request):
+    try:
+        # 1. Delete old broken admin if exists
+        User.objects.filter(username="admin@gmail.com").delete()
+        
+        # 2. Create New Superuser
+        u = User.objects.create_superuser("admin@gmail.com", "admin@gmail.com", "admin")
+        
+        # 3. Ensure Department exists
+        d, _ = Department.objects.get_or_create(name="IT")
+        
+        # 4. Create Employee Profile (Crucial for Dashboard)
+        if not Employee.objects.filter(user=u).exists():
+            Employee.objects.create(
+                user=u, 
+                first_name="Admin", 
+                last_name="User", 
+                email="admin@gmail.com", 
+                employee_code="ADM001", 
+                department=d, 
+                role="Manager", 
+                position="Admin", 
+                salary=50000, 
+                status="active", 
+                is_admin=True
+            )
+            
+        return JsonResponse({"message": "SUCCESS! Admin reset. Login with: admin@gmail.com / admin"})
+    except Exception as e:
+        return JsonResponse({"error": str(e)})
