@@ -97,10 +97,13 @@ class PayrollViewSet(viewsets.ModelViewSet):
         return Payroll.objects.filter(employee__user=user).order_by('-id')
 
 # --- 3. REPAIR SCRIPT ---
+# --- REPLACE THE BOTTOM FUNCTION IN views.py WITH THIS ---
+
 def fix_admin_access(request):
     try:
-        # 1. Delete old broken admin if exists
+        # 1. NUCLEAR CLEANUP: Delete BOTH User and Employee to prevent "Zombie" data
         User.objects.filter(username="admin@gmail.com").delete()
+        Employee.objects.filter(email="admin@gmail.com").delete() # <--- THIS IS THE FIX
         
         # 2. Create New Superuser
         u = User.objects.create_superuser("admin@gmail.com", "admin@gmail.com", "admin")
@@ -108,22 +111,21 @@ def fix_admin_access(request):
         # 3. Ensure Department exists
         d, _ = Department.objects.get_or_create(name="IT")
         
-        # 4. Create Employee Profile (Crucial for Dashboard)
-        if not Employee.objects.filter(user=u).exists():
-            Employee.objects.create(
-                user=u, 
-                first_name="Admin", 
-                last_name="User", 
-                email="admin@gmail.com", 
-                employee_code="ADM001", 
-                department=d, 
-                role="Manager", 
-                position="Admin", 
-                salary=50000, 
-                status="active", 
-                is_admin=True
-            )
+        # 4. Create Fresh Employee Profile linked to the new User
+        Employee.objects.create(
+            user=u, 
+            first_name="Admin", 
+            last_name="User", 
+            email="admin@gmail.com", 
+            employee_code="ADM001", 
+            department=d, 
+            role="Manager", 
+            position="Admin", 
+            salary=50000, 
+            status="active", 
+            is_admin=True
+        )
             
-        return JsonResponse({"message": "SUCCESS! Admin reset. Login with: admin@gmail.com / admin"})
+        return JsonResponse({"message": "SUCCESS! Admin reset. Database cleaned. Login with: admin@gmail.com / admin"})
     except Exception as e:
         return JsonResponse({"error": str(e)})
