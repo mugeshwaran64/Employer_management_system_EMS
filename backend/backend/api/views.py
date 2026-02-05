@@ -98,7 +98,7 @@ class PayrollViewSet(viewsets.ModelViewSet):
 
 # --- 3. REPAIR SCRIPT ---
 # --- REPLACE THE BOTTOM FUNCTION IN views.py WITH THIS ---
-
+#AGAIN REPLACED
 def fix_admin_access(request):
     try:
         # 1. NUCLEAR CLEANUP: Delete BOTH User and Employee to prevent "Zombie" data
