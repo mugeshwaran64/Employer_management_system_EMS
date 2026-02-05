@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Lock, Mail, LogIn } from 'lucide-react';
-import api from '../lib/api'; // <--- ADDED THIS IMPORT
+import api from '../lib/api';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Get the fixed signIn function
   const { signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -18,17 +20,24 @@ export function Login() {
     setLoading(true);
 
     try {
-      // Sending 'username' key because Django expects it, even though we send an email value
+      // 1. Call Backend
+      // We use 'username' because Django expects it, but we send the email value
       const { data } = await api.post('/token/', { 
           username: email, 
           password: password 
       });
       
-      signIn(data.access, data.employee); // Save token
+      // 2. Save Data using the FIXED AuthContext
+      // The backend returns { access: "...", user: { ... } }
+      // NOTE: Make sure your backend sends 'user'. If it sends 'employee', change data.user to data.employee below.
+      signIn(data.access, data.user || data.employee); 
+      
+      // 3. Redirect
       navigate('/dashboard');
     } catch (err: any) {
       console.error("Login Failed:", err);
-      setError('Invalid email or password');
+      // Show the actual error from backend if available
+      setError(err.response?.data?.error || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
