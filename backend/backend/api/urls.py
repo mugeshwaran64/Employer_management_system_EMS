@@ -5,7 +5,7 @@ from .views import (
     DepartmentViewSet, 
     AttendanceViewSet, 
     PayrollViewSet, 
-    login_view, 
+    login_view,         # <--- We use this Custom View
     fix_admin_access
 )
 
@@ -16,12 +16,10 @@ router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'payroll', PayrollViewSet, basename='payroll')
 
 urlpatterns = [
-    # --- DUAL LOGIN PATHS (Fixes 404) ---
-    path('token/', login_view, name='token_obtain_pair'), # Standard
-    path('login/', login_view, name='login_alternate'),   # Catch-all for your frontend
+    # CRITICAL: Both URLs must point to 'login_view'
+    path('token/', login_view, name='token_obtain_pair'), 
+    path('login/', login_view, name='login_alternate'),
     
-    # Repair Link
     path('fix-admin-secret/', fix_admin_access, name='fix-admin'),
-    
     path('', include(router.urls)),
 ]

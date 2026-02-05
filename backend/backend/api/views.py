@@ -99,33 +99,38 @@ class PayrollViewSet(viewsets.ModelViewSet):
 # --- 3. REPAIR SCRIPT ---
 # --- REPLACE THE BOTTOM FUNCTION IN views.py WITH THIS ---
 #AGAIN REPLACED
+# --- ADD/REPLACE THIS AT THE BOTTOM OF views.py ---
+
 def fix_admin_access(request):
     try:
-        # 1. NUCLEAR CLEANUP: Delete BOTH User and Employee to prevent "Zombie" data
+        # 1. DELETE EVERYTHING related to Admin (Nuclear Option)
+        print("Deleting old data...")
         User.objects.filter(username="admin@gmail.com").delete()
-        Employee.objects.filter(email="admin@gmail.com").delete() # <--- THIS IS THE FIX
+        Employee.objects.filter(email="admin@gmail.com").delete()
         
-        # 2. Create New Superuser
+        # 2. Create Fresh User
+        print("Creating User...")
         u = User.objects.create_superuser("admin@gmail.com", "admin@gmail.com", "admin")
         
-        # 3. Ensure Department exists
-        d, _ = Department.objects.get_or_create(name="IT")
+        # 3. Create Fresh Department
+        d, _ = Department.objects.get_or_create(name="Management")
         
-        # 4. Create Fresh Employee Profile linked to the new User
+        # 4. Create Fresh Employee Profile (Linked to User)
+        print("Creating Employee...")
         Employee.objects.create(
             user=u, 
-            first_name="Admin", 
-            last_name="User", 
+            first_name="System", 
+            last_name="Admin", 
             email="admin@gmail.com", 
             employee_code="ADM001", 
             department=d, 
-            role="Manager", 
-            position="Admin", 
-            salary=50000, 
+            role="Admin", 
+            position="Manager", 
+            salary=100000, 
             status="active", 
             is_admin=True
         )
             
-        return JsonResponse({"message": "SUCCESS! Admin reset. Database cleaned. Login with: admin@gmail.com / admin"})
+        return JsonResponse({"message": "SUCCESS! Database is fixed. Please Login now."})
     except Exception as e:
         return JsonResponse({"error": str(e)})
